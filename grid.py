@@ -37,6 +37,20 @@ SUBGRIDS = {
 
 CELL_TO_SUBGRID = {cell: center for center, cells in SUBGRIDS.items() for cell in cells}
 
+SUBGRID_COLORS = {
+    center: color for center, color in zip(SUBGRIDS, [
+        (255, 200, 200),  # red
+        (200, 220, 255),  # blue
+        (200, 245, 210),  # green
+        (255, 230, 190),  # orange
+        (230, 200, 255),  # purple
+        (190, 240, 240),  # teal
+        (255, 255, 190),  # yellow
+    ])
+}
+
+CELL_FILL_COLOR = {cell: SUBGRID_COLORS[CELL_TO_SUBGRID[cell]] for cell in CELLS}
+
 def _build_cell_groups():
     rows, q_diags, s_diags = {}, {}, {}
     for q, r in CELLS:
@@ -151,6 +165,7 @@ def draw_hex(surface, center, radius, color, width=0):
     ]
     pygame.draw.polygon(surface, color, points, width)
 
+
 if __name__ == "__main__":
     pygame.init()
     screen = pygame.display.set_mode((1000, 1000))
@@ -247,10 +262,8 @@ if __name__ == "__main__":
             center = hex_to_pixel(q, r, cx, cy)
             if (q, r) == selected:
                 fill = (173, 216, 230)
-            elif (q, r) in SUBGRIDS:
-                fill = (255, 245, 200)
             else:
-                fill = (255, 255, 255)
+                fill = CELL_FILL_COLOR[(q, r)]
             draw_hex(screen, center, SIZE - 2, fill)
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
             if (q, r) in error_cells:
