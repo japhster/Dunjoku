@@ -52,6 +52,11 @@ SUBGRID_COLORS = {
 
 CELL_FILL_COLOR = {cell: SUBGRID_COLORS[CELL_TO_SUBGRID[cell]] for cell in CELLS}
 
+# difficulty levels
+EASY = 20
+MEDIUM = 30
+HARD = 40
+
 def _build_cell_groups():
     rows, q_diags, s_diags = {}, {}, {}
     for q, r in CELLS:
@@ -110,14 +115,19 @@ def is_logically_solvable(given):
                 changed = True
     return len(state) == len(CELLS)
 
-def generate_puzzle(complete_grid):
+def generate_puzzle(complete_grid, max_remove):
     given = dict(complete_grid)
     cells = list(CELLS)
     random.shuffle(cells)
+    removed = 0
     for cell in cells:
+        if removed >= max_remove:
+            break
         value = given.pop(cell)
         if not is_logically_solvable(given):
-            given[cell] = value  # restore — removal breaks solvability
+            given[cell] = value
+        else:
+            removed += 1
     return given
 
 def _build_lines():
@@ -169,12 +179,10 @@ def draw_hex(surface, center, radius, color, width=0):
 
 class GameState:
     def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.complete_grid = generate_complete_grid()
-        self.given = generate_puzzle(self.complete_grid)
-        self.cell_values = dict(self.given)
+        self.choosing_difficulty = True
+        self.complete_grid = None
+        self.given = {}
+        self.cell_values = {}
         self.selected = None
         self.selected_subgrid = set()
         self.selected_lines = set()
@@ -182,8 +190,20 @@ class GameState:
         self.hint_cell = None
         self.complete = False
 
+    def start(self, difficulty):
+        self.complete_grid = generate_complete_grid()
+        self.given = generate_puzzle(self.complete_grid, difficulty)
+        self.cell_values = dict(self.given)
+        self.selected = None
+        self.selected_subgrid = set()
+        self.selected_lines = set()
+        self.error_cells = set()
+        self.hint_cell = None
+        self.complete = False
+        self.choosing_difficulty = False
+
     def new_game(self):
-        self.reset()
+        self.choosing_difficulty = True
 
     def check_complete(self):
         if len(self.cell_values) == len(CELLS):
@@ -192,7 +212,7 @@ class GameState:
                 self.complete = True
 
 
-UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'overlay_rect', 'again_rect', 'quit_rect'])
+UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'overlay_rect', 'again_rect', 'quit_rect', 'easy_rect', 'medium_rect', 'hard_rect'])
 
 
 def handle_events(state, rects, cx, cy):
@@ -201,6 +221,15 @@ def handle_events(state, rects, cx, cy):
             return False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             return False
+        if state.choosing_difficulty:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if rects.easy_rect.collidepoint(event.pos):
+                    state.start(EASY)
+                elif rects.medium_rect.collidepoint(event.pos):
+                    state.start(MEDIUM)
+                elif rects.hard_rect.collidepoint(event.pos):
+                    state.start(HARD)
+            continue
         if state.complete:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if rects.again_rect.collidepoint(event.pos):
@@ -253,6 +282,21 @@ def handle_events(state, rects, cx, cy):
 
 def draw(screen, state, font, big_font, rects, cx, cy):
     screen.fill((255, 255, 255))
+
+    if state.choosing_difficulty:
+        title = big_font.render("Choose Difficulty", True, (0, 0, 0))
+        screen.blit(title, title.get_rect(center=(500, 350)))
+        for rect, label, color in [
+            (rects.easy_rect, "Easy", (200, 230, 200)),
+            (rects.medium_rect, "Medium", (255, 230, 190)),
+            (rects.hard_rect, "Hard", (230, 200, 200)),
+        ]:
+            pygame.draw.rect(screen, color, rect, border_radius=8)
+            pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=8)
+            lbl = font.render(label, True, (0, 0, 0))
+            screen.blit(lbl, lbl.get_rect(center=rect.center))
+        return
+
 
     for i, rect in enumerate(rects.num_rects):
         pygame.draw.rect(screen, (230, 230, 230), rect, border_radius=6)
@@ -322,6 +366,9 @@ def main():
         overlay_rect=pygame.Rect(250, 370, 500, 200),
         again_rect=pygame.Rect(310, 510, 160, 44),
         quit_rect=pygame.Rect(530, 510, 160, 44),
+        easy_rect=pygame.Rect(400, 420, 200, 50),
+        medium_rect=pygame.Rect(400, 490, 200, 50),
+        hard_rect=pygame.Rect(400, 560, 200, 50),
     )
     state = GameState()
 
