@@ -70,10 +70,17 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((1000, 1000))
     pygame.display.set_caption("Dunjoku")
     clock = pygame.time.Clock()
+    font = pygame.font.SysFont(None, 44)
 
     cx, cy = 500, 500
     selected = None
     selected_subgrid = set()
+    error_subgrid = set()
+    cell_values = {}
+
+    # Number picker: 7 boxes on the left
+    NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
+    num_rects = [pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)]
 
     running = True
     while running:
@@ -83,15 +90,35 @@ if __name__ == "__main__":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                clicked = pixel_to_hex(*event.pos, cx, cy)
-                if clicked in CELLS:
-                    selected = None if clicked == selected else clicked
-                else:
-                    selected = None
-                selected_subgrid = SUBGRIDS.get(CELL_TO_SUBGRID.get(selected), set())
+                # Check number picker first
+                placed = False
+                for i, rect in enumerate(num_rects):
+                    if rect.collidepoint(event.pos) and selected is not None:
+                        value = i + 1
+                        cell_values[selected] = value
+                        subgrid = SUBGRIDS.get(CELL_TO_SUBGRID.get(selected), set())
+                        values_in_subgrid = [cell_values[c] for c in subgrid if c in cell_values]
+                        error_subgrid = subgrid if len(values_in_subgrid) != len(set(values_in_subgrid)) else set()
+                        placed = True
+                        break
+                if not placed:
+                    clicked = pixel_to_hex(*event.pos, cx, cy)
+                    if clicked in CELLS:
+                        selected = None if clicked == selected else clicked
+                    else:
+                        selected = None
+                    selected_subgrid = SUBGRIDS.get(CELL_TO_SUBGRID.get(selected), set())
 
         screen.fill((255, 255, 255))
 
+        # Draw number picker
+        for i, rect in enumerate(num_rects):
+            pygame.draw.rect(screen, (230, 230, 230), rect, border_radius=6)
+            pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=6)
+            label = font.render(str(i + 1), True, (0, 0, 0))
+            screen.blit(label, label.get_rect(center=rect.center))
+
+        # Draw grid
         for q, r in CELLS:
             center = hex_to_pixel(q, r, cx, cy)
             if (q, r) == selected:
@@ -102,8 +129,13 @@ if __name__ == "__main__":
                 fill = (255, 255, 255)
             draw_hex(screen, center, SIZE - 2, fill)
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
-            if (q, r) in selected_subgrid:
+            if (q, r) in error_subgrid:
+                draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
+            elif (q, r) in selected_subgrid:
                 draw_hex(screen, center, SIZE - 2, (100, 149, 237), width=3)
+            if (q, r) in cell_values:
+                label = font.render(str(cell_values[(q, r)]), True, (0, 0, 0))
+                screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
 
         pygame.display.flip()
         clock.tick(60)
