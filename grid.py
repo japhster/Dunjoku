@@ -24,10 +24,17 @@ CELLS = {
 
 SIZE = 55  # hex circumradius in pixels
 
-SUBHEX_CENTERS = {
-    (0, 0),
-    (3, -2), (1, -3), (-2, -1), (-3, 2), (-1, 3), (2, 1),
+SUBGRIDS = {
+    (0, 0):   {(0,0),(1,0),(-1,0),(0,1),(0,-1),(1,-1),(-1,1)},
+    (1, -3):  {(1,-3),(2,-3),(0,-3),(1,-2),(1,-4),(2,-4),(0,-2)},
+    (3, -2):  {(3,-2),(4,-2),(2,-2),(3,-1),(3,-3),(4,-3),(2,-1)},
+    (2, 1):   {(2,1),(3,1),(1,1),(2,2),(2,0),(3,0),(1,2)},
+    (-1, 3):  {(-1,3),(0,3),(-2,3),(-1,4),(-1,2),(0,2),(-2,4)},
+    (-3, 2):  {(-3,2),(-2,2),(-4,2),(-3,3),(-3,1),(-2,1),(-4,3)},
+    (-2, -1): {(-2,-1),(-1,-1),(-3,-1),(-2,0),(-2,-2),(-1,-2),(-3,0)},
 }
+
+CELL_TO_SUBGRID = {cell: center for center, cells in SUBGRIDS.items() for cell in cells}
 
 def hex_to_pixel(q, r, cx, cy):
     x = cx + (q + r / 2) * math.sqrt(3) * SIZE
@@ -66,6 +73,7 @@ if __name__ == "__main__":
 
     cx, cy = 500, 500
     selected = None
+    selected_subgrid = set()
 
     running = True
     while running:
@@ -80,6 +88,7 @@ if __name__ == "__main__":
                     selected = None if clicked == selected else clicked
                 else:
                     selected = None
+                selected_subgrid = SUBGRIDS.get(CELL_TO_SUBGRID.get(selected), set())
 
         screen.fill((255, 255, 255))
 
@@ -87,12 +96,14 @@ if __name__ == "__main__":
             center = hex_to_pixel(q, r, cx, cy)
             if (q, r) == selected:
                 fill = (173, 216, 230)
-            elif (q, r) in SUBHEX_CENTERS:
+            elif (q, r) in SUBGRIDS:
                 fill = (255, 220, 100)
             else:
                 fill = (255, 255, 255)
             draw_hex(screen, center, SIZE - 2, fill)
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
+            if (q, r) in selected_subgrid:
+                draw_hex(screen, center, SIZE - 2, (100, 149, 237), width=3)
 
         pygame.display.flip()
         clock.tick(60)
