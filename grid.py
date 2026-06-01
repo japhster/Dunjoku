@@ -171,6 +171,7 @@ if __name__ == "__main__":
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
     num_rects = [pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)]
     hint_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP, 70, 34)
+    clear_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP + 44, 70, 34)
     hint_cell = None
 
     running = True
@@ -193,6 +194,11 @@ if __name__ == "__main__":
                         error_cells = compute_errors(cell_values)
                         placed = True
                         break
+                if not placed and clear_rect.collidepoint(event.pos):
+                    if selected is not None and selected not in given:
+                        cell_values.pop(selected, None)
+                        error_cells = compute_errors(cell_values)
+                    placed = True
                 if not placed and hint_rect.collidepoint(event.pos):
                     hint_cell = next(
                         (c for c in CELLS if c not in cell_values
@@ -229,6 +235,12 @@ if __name__ == "__main__":
         pygame.draw.rect(screen, (0, 0, 0), hint_rect, width=2, border_radius=6)
         hint_label = font.render("Hint", True, (0, 0, 0))
         screen.blit(hint_label, hint_label.get_rect(center=hint_rect.center))
+
+        # Draw clear button
+        pygame.draw.rect(screen, (230, 200, 200), clear_rect, border_radius=6)
+        pygame.draw.rect(screen, (0, 0, 0), clear_rect, width=2, border_radius=6)
+        clear_label = font.render("Clear", True, (0, 0, 0))
+        screen.blit(clear_label, clear_label.get_rect(center=clear_rect.center))
 
         # Draw grid
         for q, r in CELLS:
