@@ -29,6 +29,21 @@ def hex_to_pixel(q, r, cx, cy):
     y = cy + r * 1.5 * SIZE
     return (x, y)
 
+def pixel_to_hex(x, y, cx, cy):
+    fr = (y - cy) / (1.5 * SIZE)
+    fq = (x - cx) / (math.sqrt(3) * SIZE) - fr / 2
+    fx, fz = fq, fr
+    fy = -fx - fz
+    rx, ry, rz = round(fx), round(fy), round(fz)
+    dx, dy, dz = abs(rx - fx), abs(ry - fy), abs(rz - fz)
+    if dx > dy and dx > dz:
+        rx = -ry - rz
+    elif dy > dz:
+        ry = -rx - rz
+    else:
+        rz = -rx - ry
+    return (rx, rz)
+
 def draw_hex(surface, center, radius, color, width=0):
     cx, cy = center
     points = [
@@ -45,6 +60,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
 
     cx, cy = 500, 500
+    selected = None
 
     running = True
     while running:
@@ -53,12 +69,19 @@ if __name__ == "__main__":
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                clicked = pixel_to_hex(*event.pos, cx, cy)
+                if clicked in CELLS:
+                    selected = None if clicked == selected else clicked
+                else:
+                    selected = None
 
         screen.fill((255, 255, 255))
 
         for q, r in CELLS:
             center = hex_to_pixel(q, r, cx, cy)
-            draw_hex(screen, center, SIZE - 2, (255, 255, 255))
+            fill = (173, 216, 230) if (q, r) == selected else (255, 255, 255)
+            draw_hex(screen, center, SIZE - 2, fill)
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
 
         pygame.display.flip()
