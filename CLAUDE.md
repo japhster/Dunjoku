@@ -12,10 +12,10 @@ python grid.py
 
 All code lives in `grid.py`. Top-to-bottom order:
 
-1. **Module-level data** — `CELLS`, `SIZE`, `SUBGRIDS`, `CELL_TO_SUBGRID`, `SUBGRID_COLORS`, `CELL_FILL_COLOR`, `CELL_GROUPS`, `LINES`
+1. **Module-level data** — `CELLS`, `SIZE`, `SUBGRIDS`, `CELL_TO_SUBGRID`, `SUBGRID_COLORS`, `CELL_FILL_COLOR`, `CELL_GROUPS`, `LINES`, `EASY`/`MEDIUM`/`HARD` difficulty constants
 2. **Pure logic** — `get_possible_values`, `generate_complete_grid`, `is_logically_solvable`, `generate_puzzle`, `compute_errors`
 3. **Rendering helpers** — `hex_to_pixel`, `pixel_to_hex`, `draw_hex`
-4. **`GameState` class** — all mutable game state; `reset()` is shared by `__init__` and `new_game()`
+4. **`GameState` class** — all mutable game state; `start(difficulty)` generates a new board at the given difficulty; `new_game()` returns to the difficulty selection screen
 5. **`UIRects` namedtuple** — all static pygame.Rect geometry, built once in `main()`
 6. **`handle_events(state, rects, cx, cy) -> bool`** — full event loop; returns False to quit
 7. **`draw(screen, state, font, big_font, rects, cx, cy)`** — full render pass
@@ -35,4 +35,4 @@ Pointy-top hexagons using axial coordinates `(q, r)`:
 
 ## Puzzle rules
 
-Each subgrid, row, and diagonal must contain no duplicate values 1–7. Puzzle generation strips cells until no single further removal is solvable by naked singles alone.
+Each subgrid, row, and diagonal must contain no duplicate values 1–7. Puzzle generation strips cells until either no further removal is solvable by naked singles alone, or the difficulty cap is reached (Easy: 20, Medium: 30, Hard: 40 cells removed).
