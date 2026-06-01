@@ -24,6 +24,11 @@ CELLS = {
 
 SIZE = 55  # hex circumradius in pixels
 
+SUBHEX_CENTERS = {
+    (0, 0),
+    (3, -2), (1, -3), (-2, -1), (-3, 2), (-1, 3), (2, 1),
+}
+
 def hex_to_pixel(q, r, cx, cy):
     x = cx + (q + r / 2) * math.sqrt(3) * SIZE
     y = cy + r * 1.5 * SIZE
@@ -80,7 +85,12 @@ if __name__ == "__main__":
 
         for q, r in CELLS:
             center = hex_to_pixel(q, r, cx, cy)
-            fill = (173, 216, 230) if (q, r) == selected else (255, 255, 255)
+            if (q, r) == selected:
+                fill = (173, 216, 230)
+            elif (q, r) in SUBHEX_CENTERS:
+                fill = (255, 220, 100)
+            else:
+                fill = (255, 255, 255)
             draw_hex(screen, center, SIZE - 2, fill)
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
 
