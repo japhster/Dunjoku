@@ -161,6 +161,7 @@ if __name__ == "__main__":
     cx, cy = 500, 500
     selected = None
     selected_subgrid = set()
+    selected_lines = set()
     error_cells = set()
     complete_grid = generate_complete_grid()
     given = generate_puzzle(complete_grid)
@@ -202,7 +203,13 @@ if __name__ == "__main__":
                         selected = None if clicked == selected else clicked
                     else:
                         selected = None
-                    selected_subgrid = SUBGRIDS.get(CELL_TO_SUBGRID.get(selected), set())
+                    if selected:
+                        subgrid, *lines = CELL_GROUPS[selected]
+                        selected_subgrid = set(subgrid)
+                        selected_lines = set().union(*lines) - selected_subgrid
+                    else:
+                        selected_subgrid = set()
+                        selected_lines = set()
 
         screen.fill((255, 255, 255))
 
@@ -225,7 +232,7 @@ if __name__ == "__main__":
             if (q, r) == selected:
                 fill = (173, 216, 230)
             elif (q, r) in SUBGRIDS:
-                fill = (255, 220, 100)
+                fill = (255, 245, 200)
             else:
                 fill = (255, 255, 255)
             draw_hex(screen, center, SIZE - 2, fill)
@@ -235,7 +242,9 @@ if __name__ == "__main__":
             elif (q, r) == hint_cell:
                 draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
             elif (q, r) in selected_subgrid:
-                draw_hex(screen, center, SIZE - 2, (100, 149, 237), width=3)
+                draw_hex(screen, center, SIZE - 2, (60, 90, 200), width=3)
+            elif (q, r) in selected_lines:
+                draw_hex(screen, center, SIZE - 2, (140, 180, 240), width=3)
             if (q, r) in cell_values:
                 color = (0, 0, 0) if (q, r) in given else (80, 80, 180)
                 label = font.render(str(cell_values[(q, r)]), True, color)
