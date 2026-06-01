@@ -180,6 +180,10 @@ if __name__ == "__main__":
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
+            if event.type == pygame.KEYDOWN and selected is not None and selected not in given:
+                if event.unicode in '1234567':
+                    cell_values[selected] = int(event.unicode)
+                    error_cells = compute_errors(cell_values)
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # Check number picker first
                 placed = False
