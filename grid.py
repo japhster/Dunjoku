@@ -317,8 +317,8 @@ def main():
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
     rects = UIRects(
         num_rects=[pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)],
-        hint_rect=pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP, 70, 34),
-        clear_rect=pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP + 44, 70, 34),
+        hint_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP, 90, 38),
+        clear_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP + 44, 90, 38),
         overlay_rect=pygame.Rect(250, 370, 500, 200),
         again_rect=pygame.Rect(310, 510, 160, 44),
         quit_rect=pygame.Rect(530, 510, 160, 44),
