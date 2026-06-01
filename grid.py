@@ -166,7 +166,7 @@ def draw_hex(surface, center, radius, color, width=0):
     pygame.draw.polygon(surface, color, points, width)
 
 
-if __name__ == "__main__":
+def main():
     pygame.init()
     screen = pygame.display.set_mode((1000, 1000))
     pygame.display.set_caption("Dunjoku")
@@ -188,6 +188,32 @@ if __name__ == "__main__":
     hint_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP, 70, 34)
     clear_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP + 44, 70, 34)
     hint_cell = None
+    complete = False
+
+    # Congratulations overlay geometry
+    overlay_rect = pygame.Rect(250, 370, 500, 200)
+    again_rect   = pygame.Rect(310, 510, 160, 44)
+    quit_rect    = pygame.Rect(530, 510, 160, 44)
+    big_font     = pygame.font.SysFont(None, 56)
+
+    def new_game():
+        nonlocal complete_grid, given, cell_values, selected, selected_subgrid, selected_lines, error_cells, hint_cell, complete
+        complete_grid = generate_complete_grid()
+        given = generate_puzzle(complete_grid)
+        cell_values = dict(given)
+        selected = None
+        selected_subgrid = set()
+        selected_lines = set()
+        error_cells = set()
+        hint_cell = None
+        complete = False
+
+    def check_complete():
+        nonlocal complete, error_cells
+        if len(cell_values) == len(CELLS):
+            error_cells = compute_errors(cell_values)
+            if not error_cells:
+                complete = True
 
     running = True
     while running:
@@ -196,10 +222,18 @@ if __name__ == "__main__":
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
+            if complete:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if again_rect.collidepoint(event.pos):
+                        new_game()
+                    elif quit_rect.collidepoint(event.pos):
+                        running = False
+                continue
             if event.type == pygame.KEYDOWN and selected is not None and selected not in given:
                 if event.unicode in '1234567':
                     cell_values[selected] = int(event.unicode)
                     error_cells = compute_errors(cell_values)
+                    check_complete()
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # Check number picker first
                 placed = False
@@ -207,6 +241,7 @@ if __name__ == "__main__":
                     if rect.collidepoint(event.pos) and selected is not None and selected not in given:
                         cell_values[selected] = i + 1
                         error_cells = compute_errors(cell_values)
+                        check_complete()
                         placed = True
                         break
                 if not placed and clear_rect.collidepoint(event.pos):
@@ -279,7 +314,26 @@ if __name__ == "__main__":
                 label = font.render(str(cell_values[(q, r)]), True, color)
                 screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
 
+        if complete:
+            pygame.draw.rect(screen, (255, 255, 255), overlay_rect, border_radius=12)
+            pygame.draw.rect(screen, (0, 0, 0), overlay_rect, width=3, border_radius=12)
+            msg = big_font.render("Congratulations!", True, (0, 0, 0))
+            screen.blit(msg, msg.get_rect(center=(500, 420)))
+            sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
+            screen.blit(sub, sub.get_rect(center=(500, 475)))
+            pygame.draw.rect(screen, (200, 230, 200), again_rect, border_radius=8)
+            pygame.draw.rect(screen, (0, 0, 0), again_rect, width=2, border_radius=8)
+            screen.blit(font.render("Play Again", True, (0, 0, 0)),
+                        font.render("Play Again", True, (0,0,0)).get_rect(center=again_rect.center))
+            pygame.draw.rect(screen, (230, 200, 200), quit_rect, border_radius=8)
+            pygame.draw.rect(screen, (0, 0, 0), quit_rect, width=2, border_radius=8)
+            screen.blit(font.render("Quit", True, (0, 0, 0)),
+                        font.render("Quit", True, (0,0,0)).get_rect(center=quit_rect.center))
+
         pygame.display.flip()
         clock.tick(60)
 
     pygame.quit()
+
+if __name__ == "__main__":
+    main()
