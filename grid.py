@@ -1,4 +1,5 @@
 import math
+import random
 import pygame
 
 CELLS = {
@@ -35,6 +36,50 @@ SUBGRIDS = {
 }
 
 CELL_TO_SUBGRID = {cell: center for center, cells in SUBGRIDS.items() for cell in cells}
+
+def _build_cell_groups():
+    rows, q_diags, s_diags = {}, {}, {}
+    for q, r in CELLS:
+        rows.setdefault(r, set()).add((q, r))
+        q_diags.setdefault(q, set()).add((q, r))
+        s_diags.setdefault(q + r, set()).add((q, r))
+    return {
+        (q, r): [
+            SUBGRIDS[CELL_TO_SUBGRID[(q, r)]],
+            frozenset(rows[r]),
+            frozenset(q_diags[q]),
+            frozenset(s_diags[q + r]),
+        ]
+        for q, r in CELLS
+    }
+
+CELL_GROUPS = _build_cell_groups()
+
+def get_possible_values(cell, assignment):
+    used = {assignment[c] for group in CELL_GROUPS[cell] for c in group if c in assignment and c != cell}
+    return set(range(1, 8)) - used
+
+def generate_complete_grid():
+    assignment = {}
+
+    def backtrack():
+        if len(assignment) == len(CELLS):
+            return True
+        unassigned = [c for c in CELLS if c not in assignment]
+        options = {c: get_possible_values(c, assignment) for c in unassigned}
+        if any(len(v) == 0 for v in options.values()):
+            return False
+        min_opts = min(len(v) for v in options.values())
+        cell = random.choice([c for c, v in options.items() if len(v) == min_opts])
+        for value in random.sample(list(options[cell]), len(options[cell])):
+            assignment[cell] = value
+            if backtrack():
+                return True
+            del assignment[cell]
+        return False
+
+    backtrack()
+    return assignment
 
 def _build_lines():
     buckets = [{}, {}, {}]
@@ -93,7 +138,7 @@ if __name__ == "__main__":
     selected = None
     selected_subgrid = set()
     error_cells = set()
-    cell_values = {}
+    cell_values = generate_complete_grid()
 
     # Number picker: 7 boxes on the left
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
