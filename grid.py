@@ -1,5 +1,6 @@
 import math
 import random
+from collections import namedtuple
 import pygame
 
 CELLS = {
@@ -166,174 +167,173 @@ def draw_hex(surface, center, radius, color, width=0):
     pygame.draw.polygon(surface, color, points, width)
 
 
+class GameState:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.complete_grid = generate_complete_grid()
+        self.given = generate_puzzle(self.complete_grid)
+        self.cell_values = dict(self.given)
+        self.selected = None
+        self.selected_subgrid = set()
+        self.selected_lines = set()
+        self.error_cells = set()
+        self.hint_cell = None
+        self.complete = False
+
+    def new_game(self):
+        self.reset()
+
+    def check_complete(self):
+        if len(self.cell_values) == len(CELLS):
+            self.error_cells = compute_errors(self.cell_values)
+            if not self.error_cells:
+                self.complete = True
+
+
+UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'overlay_rect', 'again_rect', 'quit_rect'])
+
+
+def handle_events(state, rects, cx, cy):
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            return False
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            return False
+        if state.complete:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if rects.again_rect.collidepoint(event.pos):
+                    state.new_game()
+                elif rects.quit_rect.collidepoint(event.pos):
+                    return False
+            continue
+        if event.type == pygame.KEYDOWN and state.selected is not None and state.selected not in state.given:
+            if event.unicode in '1234567':
+                state.cell_values[state.selected] = int(event.unicode)
+                state.error_cells = compute_errors(state.cell_values)
+                state.check_complete()
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            placed = False
+            for i, rect in enumerate(rects.num_rects):
+                if rect.collidepoint(event.pos) and state.selected is not None and state.selected not in state.given:
+                    state.cell_values[state.selected] = i + 1
+                    state.error_cells = compute_errors(state.cell_values)
+                    state.check_complete()
+                    placed = True
+                    break
+            if not placed and rects.clear_rect.collidepoint(event.pos):
+                if state.selected is not None and state.selected not in state.given:
+                    state.cell_values.pop(state.selected, None)
+                    state.error_cells = compute_errors(state.cell_values)
+                placed = True
+            if not placed and rects.hint_rect.collidepoint(event.pos):
+                state.hint_cell = next(
+                    (c for c in CELLS if c not in state.cell_values
+                     and len(get_possible_values(c, state.cell_values)) == 1),
+                    None
+                )
+                placed = True
+            if not placed:
+                state.hint_cell = None
+                clicked = pixel_to_hex(*event.pos, cx, cy)
+                if clicked in CELLS:
+                    state.selected = None if clicked == state.selected else clicked
+                else:
+                    state.selected = None
+                if state.selected:
+                    subgrid, *lines = CELL_GROUPS[state.selected]
+                    state.selected_subgrid = set(subgrid)
+                    state.selected_lines = set().union(*lines) - state.selected_subgrid
+                else:
+                    state.selected_subgrid = set()
+                    state.selected_lines = set()
+    return True
+
+
+def draw(screen, state, font, big_font, rects, cx, cy):
+    screen.fill((255, 255, 255))
+
+    for i, rect in enumerate(rects.num_rects):
+        pygame.draw.rect(screen, (230, 230, 230), rect, border_radius=6)
+        pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=6)
+        label = font.render(str(i + 1), True, (0, 0, 0))
+        screen.blit(label, label.get_rect(center=rect.center))
+
+    pygame.draw.rect(screen, (200, 230, 200), rects.hint_rect, border_radius=6)
+    pygame.draw.rect(screen, (0, 0, 0), rects.hint_rect, width=2, border_radius=6)
+    screen.blit(font.render("Hint", True, (0, 0, 0)),
+                font.render("Hint", True, (0, 0, 0)).get_rect(center=rects.hint_rect.center))
+
+    pygame.draw.rect(screen, (230, 200, 200), rects.clear_rect, border_radius=6)
+    pygame.draw.rect(screen, (0, 0, 0), rects.clear_rect, width=2, border_radius=6)
+    screen.blit(font.render("Clear", True, (0, 0, 0)),
+                font.render("Clear", True, (0, 0, 0)).get_rect(center=rects.clear_rect.center))
+
+    for q, r in CELLS:
+        center = hex_to_pixel(q, r, cx, cy)
+        fill = (173, 216, 230) if (q, r) == state.selected else CELL_FILL_COLOR[(q, r)]
+        draw_hex(screen, center, SIZE - 2, fill)
+        draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
+        if (q, r) in state.error_cells:
+            draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
+        elif (q, r) == state.hint_cell:
+            draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
+        elif (q, r) in state.selected_subgrid:
+            draw_hex(screen, center, SIZE - 2, (60, 90, 200), width=3)
+        elif (q, r) in state.selected_lines:
+            draw_hex(screen, center, SIZE - 2, (140, 180, 240), width=3)
+        if (q, r) in state.cell_values:
+            color = (0, 0, 0) if (q, r) in state.given else (80, 80, 180)
+            label = font.render(str(state.cell_values[(q, r)]), True, color)
+            screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
+
+    if state.complete:
+        pygame.draw.rect(screen, (255, 255, 255), rects.overlay_rect, border_radius=12)
+        pygame.draw.rect(screen, (0, 0, 0), rects.overlay_rect, width=3, border_radius=12)
+        msg = big_font.render("Congratulations!", True, (0, 0, 0))
+        screen.blit(msg, msg.get_rect(center=(500, 420)))
+        sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
+        screen.blit(sub, sub.get_rect(center=(500, 475)))
+        pygame.draw.rect(screen, (200, 230, 200), rects.again_rect, border_radius=8)
+        pygame.draw.rect(screen, (0, 0, 0), rects.again_rect, width=2, border_radius=8)
+        screen.blit(font.render("Play Again", True, (0, 0, 0)),
+                    font.render("Play Again", True, (0, 0, 0)).get_rect(center=rects.again_rect.center))
+        pygame.draw.rect(screen, (230, 200, 200), rects.quit_rect, border_radius=8)
+        pygame.draw.rect(screen, (0, 0, 0), rects.quit_rect, width=2, border_radius=8)
+        screen.blit(font.render("Quit", True, (0, 0, 0)),
+                    font.render("Quit", True, (0, 0, 0)).get_rect(center=rects.quit_rect.center))
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((1000, 1000))
     pygame.display.set_caption("Dunjoku")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont(None, 44)
-
+    big_font = pygame.font.SysFont(None, 56)
     cx, cy = 500, 500
-    selected = None
-    selected_subgrid = set()
-    selected_lines = set()
-    error_cells = set()
-    complete_grid = generate_complete_grid()
-    given = generate_puzzle(complete_grid)
-    cell_values = dict(given)
 
-    # Number picker: 7 boxes on the left
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
-    num_rects = [pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)]
-    hint_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP, 70, 34)
-    clear_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP + 44, 70, 34)
-    hint_cell = None
-    complete = False
-
-    # Congratulations overlay geometry
-    overlay_rect = pygame.Rect(250, 370, 500, 200)
-    again_rect   = pygame.Rect(310, 510, 160, 44)
-    quit_rect    = pygame.Rect(530, 510, 160, 44)
-    big_font     = pygame.font.SysFont(None, 56)
-
-    def new_game():
-        nonlocal complete_grid, given, cell_values, selected, selected_subgrid, selected_lines, error_cells, hint_cell, complete
-        complete_grid = generate_complete_grid()
-        given = generate_puzzle(complete_grid)
-        cell_values = dict(given)
-        selected = None
-        selected_subgrid = set()
-        selected_lines = set()
-        error_cells = set()
-        hint_cell = None
-        complete = False
-
-    def check_complete():
-        nonlocal complete, error_cells
-        if len(cell_values) == len(CELLS):
-            error_cells = compute_errors(cell_values)
-            if not error_cells:
-                complete = True
+    rects = UIRects(
+        num_rects=[pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)],
+        hint_rect=pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP, 70, 34),
+        clear_rect=pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP + 44, 70, 34),
+        overlay_rect=pygame.Rect(250, 370, 500, 200),
+        again_rect=pygame.Rect(310, 510, 160, 44),
+        quit_rect=pygame.Rect(530, 510, 160, 44),
+    )
+    state = GameState()
 
     running = True
     while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
-            if complete:
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if again_rect.collidepoint(event.pos):
-                        new_game()
-                    elif quit_rect.collidepoint(event.pos):
-                        running = False
-                continue
-            if event.type == pygame.KEYDOWN and selected is not None and selected not in given:
-                if event.unicode in '1234567':
-                    cell_values[selected] = int(event.unicode)
-                    error_cells = compute_errors(cell_values)
-                    check_complete()
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Check number picker first
-                placed = False
-                for i, rect in enumerate(num_rects):
-                    if rect.collidepoint(event.pos) and selected is not None and selected not in given:
-                        cell_values[selected] = i + 1
-                        error_cells = compute_errors(cell_values)
-                        check_complete()
-                        placed = True
-                        break
-                if not placed and clear_rect.collidepoint(event.pos):
-                    if selected is not None and selected not in given:
-                        cell_values.pop(selected, None)
-                        error_cells = compute_errors(cell_values)
-                    placed = True
-                if not placed and hint_rect.collidepoint(event.pos):
-                    hint_cell = next(
-                        (c for c in CELLS if c not in cell_values
-                         and len(get_possible_values(c, cell_values)) == 1),
-                        None
-                    )
-                    placed = True
-                if not placed:
-                    hint_cell = None
-                    clicked = pixel_to_hex(*event.pos, cx, cy)
-                    if clicked in CELLS:
-                        selected = None if clicked == selected else clicked
-                    else:
-                        selected = None
-                    if selected:
-                        subgrid, *lines = CELL_GROUPS[selected]
-                        selected_subgrid = set(subgrid)
-                        selected_lines = set().union(*lines) - selected_subgrid
-                    else:
-                        selected_subgrid = set()
-                        selected_lines = set()
-
-        screen.fill((255, 255, 255))
-
-        # Draw number picker
-        for i, rect in enumerate(num_rects):
-            pygame.draw.rect(screen, (230, 230, 230), rect, border_radius=6)
-            pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=6)
-            label = font.render(str(i + 1), True, (0, 0, 0))
-            screen.blit(label, label.get_rect(center=rect.center))
-
-        # Draw hint button
-        pygame.draw.rect(screen, (200, 230, 200), hint_rect, border_radius=6)
-        pygame.draw.rect(screen, (0, 0, 0), hint_rect, width=2, border_radius=6)
-        hint_label = font.render("Hint", True, (0, 0, 0))
-        screen.blit(hint_label, hint_label.get_rect(center=hint_rect.center))
-
-        # Draw clear button
-        pygame.draw.rect(screen, (230, 200, 200), clear_rect, border_radius=6)
-        pygame.draw.rect(screen, (0, 0, 0), clear_rect, width=2, border_radius=6)
-        clear_label = font.render("Clear", True, (0, 0, 0))
-        screen.blit(clear_label, clear_label.get_rect(center=clear_rect.center))
-
-        # Draw grid
-        for q, r in CELLS:
-            center = hex_to_pixel(q, r, cx, cy)
-            if (q, r) == selected:
-                fill = (173, 216, 230)
-            else:
-                fill = CELL_FILL_COLOR[(q, r)]
-            draw_hex(screen, center, SIZE - 2, fill)
-            draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
-            if (q, r) in error_cells:
-                draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
-            elif (q, r) == hint_cell:
-                draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
-            elif (q, r) in selected_subgrid:
-                draw_hex(screen, center, SIZE - 2, (60, 90, 200), width=3)
-            elif (q, r) in selected_lines:
-                draw_hex(screen, center, SIZE - 2, (140, 180, 240), width=3)
-            if (q, r) in cell_values:
-                color = (0, 0, 0) if (q, r) in given else (80, 80, 180)
-                label = font.render(str(cell_values[(q, r)]), True, color)
-                screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
-
-        if complete:
-            pygame.draw.rect(screen, (255, 255, 255), overlay_rect, border_radius=12)
-            pygame.draw.rect(screen, (0, 0, 0), overlay_rect, width=3, border_radius=12)
-            msg = big_font.render("Congratulations!", True, (0, 0, 0))
-            screen.blit(msg, msg.get_rect(center=(500, 420)))
-            sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
-            screen.blit(sub, sub.get_rect(center=(500, 475)))
-            pygame.draw.rect(screen, (200, 230, 200), again_rect, border_radius=8)
-            pygame.draw.rect(screen, (0, 0, 0), again_rect, width=2, border_radius=8)
-            screen.blit(font.render("Play Again", True, (0, 0, 0)),
-                        font.render("Play Again", True, (0,0,0)).get_rect(center=again_rect.center))
-            pygame.draw.rect(screen, (230, 200, 200), quit_rect, border_radius=8)
-            pygame.draw.rect(screen, (0, 0, 0), quit_rect, width=2, border_radius=8)
-            screen.blit(font.render("Quit", True, (0, 0, 0)),
-                        font.render("Quit", True, (0,0,0)).get_rect(center=quit_rect.center))
-
+        running = handle_events(state, rects, cx, cy)
+        draw(screen, state, font, big_font, rects, cx, cy)
         pygame.display.flip()
         clock.tick(60)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
