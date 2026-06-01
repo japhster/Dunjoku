@@ -36,6 +36,23 @@ SUBGRIDS = {
 
 CELL_TO_SUBGRID = {cell: center for center, cells in SUBGRIDS.items() for cell in cells}
 
+def _build_lines():
+    buckets = [{}, {}, {}]
+    for q, r in CELLS:
+        for bucket, key in zip(buckets, [r, q, q + r]):
+            bucket.setdefault(key, set()).add((q, r))
+    return [frozenset(v) for b in buckets for v in b.values()]
+
+LINES = _build_lines()
+
+def compute_errors(cell_values):
+    error_cells = set()
+    for group in [*SUBGRIDS.values(), *LINES]:
+        vals = [cell_values[c] for c in group if c in cell_values]
+        if len(vals) != len(set(vals)):
+            error_cells |= group
+    return error_cells
+
 def hex_to_pixel(q, r, cx, cy):
     x = cx + (q + r / 2) * math.sqrt(3) * SIZE
     y = cy + r * 1.5 * SIZE
@@ -75,7 +92,7 @@ if __name__ == "__main__":
     cx, cy = 500, 500
     selected = None
     selected_subgrid = set()
-    error_subgrid = set()
+    error_cells = set()
     cell_values = {}
 
     # Number picker: 7 boxes on the left
@@ -94,11 +111,8 @@ if __name__ == "__main__":
                 placed = False
                 for i, rect in enumerate(num_rects):
                     if rect.collidepoint(event.pos) and selected is not None:
-                        value = i + 1
-                        cell_values[selected] = value
-                        subgrid = SUBGRIDS.get(CELL_TO_SUBGRID.get(selected), set())
-                        values_in_subgrid = [cell_values[c] for c in subgrid if c in cell_values]
-                        error_subgrid = subgrid if len(values_in_subgrid) != len(set(values_in_subgrid)) else set()
+                        cell_values[selected] = i + 1
+                        error_cells = compute_errors(cell_values)
                         placed = True
                         break
                 if not placed:
@@ -129,7 +143,7 @@ if __name__ == "__main__":
                 fill = (255, 255, 255)
             draw_hex(screen, center, SIZE - 2, fill)
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
-            if (q, r) in error_subgrid:
+            if (q, r) in error_cells:
                 draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
             elif (q, r) in selected_subgrid:
                 draw_hex(screen, center, SIZE - 2, (100, 149, 237), width=3)
