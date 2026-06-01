@@ -2,7 +2,7 @@
 
 A hexagonal number-placement puzzle game built with Python and Pygame.
 
-![Dunjoku screenshot](dunjoku_example.jpg)
+<img width="866" height="846" alt="image" src="https://github.com/user-attachments/assets/a815f100-dd42-49d3-9bdb-eb3bd31772b2" />
 
 ## Rules
 
