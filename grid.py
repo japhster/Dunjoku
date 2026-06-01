@@ -81,6 +81,30 @@ def generate_complete_grid():
     backtrack()
     return assignment
 
+def is_logically_solvable(given):
+    state = dict(given)
+    changed = True
+    while changed:
+        changed = False
+        for cell in CELLS:
+            if cell in state:
+                continue
+            possible = get_possible_values(cell, state)
+            if len(possible) == 1:
+                state[cell] = next(iter(possible))
+                changed = True
+    return len(state) == len(CELLS)
+
+def generate_puzzle(complete_grid):
+    given = dict(complete_grid)
+    cells = list(CELLS)
+    random.shuffle(cells)
+    for cell in cells:
+        value = given.pop(cell)
+        if not is_logically_solvable(given):
+            given[cell] = value  # restore — removal breaks solvability
+    return given
+
 def _build_lines():
     buckets = [{}, {}, {}]
     for q, r in CELLS:
@@ -138,11 +162,15 @@ if __name__ == "__main__":
     selected = None
     selected_subgrid = set()
     error_cells = set()
-    cell_values = generate_complete_grid()
+    complete_grid = generate_complete_grid()
+    given = generate_puzzle(complete_grid)
+    cell_values = dict(given)
 
     # Number picker: 7 boxes on the left
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
     num_rects = [pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)]
+    hint_rect = pygame.Rect(NUM_X - 35, NUM_Y0 + 7 * NUM_GAP, 70, 34)
+    hint_cell = None
 
     running = True
     while running:
@@ -155,12 +183,20 @@ if __name__ == "__main__":
                 # Check number picker first
                 placed = False
                 for i, rect in enumerate(num_rects):
-                    if rect.collidepoint(event.pos) and selected is not None:
+                    if rect.collidepoint(event.pos) and selected is not None and selected not in given:
                         cell_values[selected] = i + 1
                         error_cells = compute_errors(cell_values)
                         placed = True
                         break
+                if not placed and hint_rect.collidepoint(event.pos):
+                    hint_cell = next(
+                        (c for c in CELLS if c not in cell_values
+                         and len(get_possible_values(c, cell_values)) == 1),
+                        None
+                    )
+                    placed = True
                 if not placed:
+                    hint_cell = None
                     clicked = pixel_to_hex(*event.pos, cx, cy)
                     if clicked in CELLS:
                         selected = None if clicked == selected else clicked
@@ -177,6 +213,12 @@ if __name__ == "__main__":
             label = font.render(str(i + 1), True, (0, 0, 0))
             screen.blit(label, label.get_rect(center=rect.center))
 
+        # Draw hint button
+        pygame.draw.rect(screen, (200, 230, 200), hint_rect, border_radius=6)
+        pygame.draw.rect(screen, (0, 0, 0), hint_rect, width=2, border_radius=6)
+        hint_label = font.render("Hint", True, (0, 0, 0))
+        screen.blit(hint_label, hint_label.get_rect(center=hint_rect.center))
+
         # Draw grid
         for q, r in CELLS:
             center = hex_to_pixel(q, r, cx, cy)
@@ -190,10 +232,13 @@ if __name__ == "__main__":
             draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
             if (q, r) in error_cells:
                 draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
+            elif (q, r) == hint_cell:
+                draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
             elif (q, r) in selected_subgrid:
                 draw_hex(screen, center, SIZE - 2, (100, 149, 237), width=3)
             if (q, r) in cell_values:
-                label = font.render(str(cell_values[(q, r)]), True, (0, 0, 0))
+                color = (0, 0, 0) if (q, r) in given else (80, 80, 180)
+                label = font.render(str(cell_values[(q, r)]), True, color)
                 screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
 
         pygame.display.flip()
