@@ -15,8 +15,9 @@ Place the numbers 1–7 so that no value repeats within any:
 
 - **Click** a cell to select it, then press **1–7** to place a number
 - Duplicate violations are highlighted in red
-- **Hint** — fills in a correct value for the selected cell
-- **Clear** — removes the value from the selected cell
+- **Hint** — highlights a cell where the correct value can be logically deduced
+- **Notes** — toggle notes mode; press 1–7 to mark candidate values in empty cells (placing a real number clears notes from affected cells automatically)
+- **Clear** — removes the value or notes from the selected cell
 - **New Game** — returns to the difficulty selection screen
 
 ## Difficulty
