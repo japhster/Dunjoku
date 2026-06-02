@@ -183,6 +183,8 @@ class GameState:
         self.complete_grid = None
         self.given = {}
         self.cell_values = {}
+        self.cell_notes = {}
+        self.notes_mode = False
         self.selected = None
         self.selected_subgrid = set()
         self.selected_lines = set()
@@ -194,6 +196,8 @@ class GameState:
         self.complete_grid = generate_complete_grid()
         self.given = generate_puzzle(self.complete_grid, difficulty)
         self.cell_values = dict(self.given)
+        self.cell_notes = {}
+        self.notes_mode = False
         self.selected = None
         self.selected_subgrid = set()
         self.selected_lines = set()
@@ -205,6 +209,16 @@ class GameState:
     def new_game(self):
         self.choosing_difficulty = True
 
+    def place_value(self, cell, v):
+        self.cell_values[cell] = v
+        self.cell_notes.pop(cell, None)
+        for group in CELL_GROUPS[cell]:
+            for c in group:
+                if c in self.cell_notes:
+                    self.cell_notes[c].discard(v)
+        self.error_cells = compute_errors(self.cell_values)
+        self.check_complete()
+
     def check_complete(self):
         if len(self.cell_values) == len(CELLS):
             self.error_cells = compute_errors(self.cell_values)
@@ -212,7 +226,7 @@ class GameState:
                 self.complete = True
 
 
-UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'overlay_rect', 'again_rect', 'quit_rect', 'easy_rect', 'medium_rect', 'hard_rect'])
+UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'notes_rect', 'overlay_rect', 'again_rect', 'quit_rect', 'easy_rect', 'medium_rect', 'hard_rect'])
 
 
 def handle_events(state, rects, cx, cy):
@@ -239,22 +253,40 @@ def handle_events(state, rects, cx, cy):
             continue
         if event.type == pygame.KEYDOWN and state.selected is not None and state.selected not in state.given:
             if event.unicode in '1234567':
-                state.cell_values[state.selected] = int(event.unicode)
-                state.error_cells = compute_errors(state.cell_values)
-                state.check_complete()
+                v = int(event.unicode)
+                if state.notes_mode and state.selected not in state.cell_values:
+                    notes = state.cell_notes.setdefault(state.selected, set())
+                    if v in notes:
+                        notes.discard(v)
+                    else:
+                        notes.add(v)
+                elif not state.notes_mode:
+                    state.place_value(state.selected, v)
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             placed = False
             for i, rect in enumerate(rects.num_rects):
                 if rect.collidepoint(event.pos) and state.selected is not None and state.selected not in state.given:
-                    state.cell_values[state.selected] = i + 1
-                    state.error_cells = compute_errors(state.cell_values)
-                    state.check_complete()
+                    v = i + 1
+                    if state.notes_mode and state.selected not in state.cell_values:
+                        notes = state.cell_notes.setdefault(state.selected, set())
+                        if v in notes:
+                            notes.discard(v)
+                        else:
+                            notes.add(v)
+                    elif not state.notes_mode:
+                        state.place_value(state.selected, v)
                     placed = True
                     break
+            if not placed and rects.notes_rect.collidepoint(event.pos):
+                state.notes_mode = not state.notes_mode
+                placed = True
             if not placed and rects.clear_rect.collidepoint(event.pos):
                 if state.selected is not None and state.selected not in state.given:
-                    state.cell_values.pop(state.selected, None)
-                    state.error_cells = compute_errors(state.cell_values)
+                    if state.notes_mode:
+                        state.cell_notes.pop(state.selected, None)
+                    else:
+                        state.cell_values.pop(state.selected, None)
+                        state.error_cells = compute_errors(state.cell_values)
                 placed = True
             if not placed and rects.hint_rect.collidepoint(event.pos):
                 state.hint_cell = next(
@@ -280,7 +312,14 @@ def handle_events(state, rects, cx, cy):
     return True
 
 
-def draw(screen, state, font, big_font, rects, cx, cy):
+NOTE_OFFSETS = {
+    1: (-16, -18), 2: (0, -18), 3: (16, -18),
+    4: (-16,   0), 5: (0,   0), 6: (16,   0),
+    7: (  0,  18),
+}
+
+
+def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
     screen.fill((255, 255, 255))
 
     if state.choosing_difficulty:
@@ -314,6 +353,12 @@ def draw(screen, state, font, big_font, rects, cx, cy):
     screen.blit(font.render("Clear", True, (0, 0, 0)),
                 font.render("Clear", True, (0, 0, 0)).get_rect(center=rects.clear_rect.center))
 
+    notes_color = (160, 210, 160) if state.notes_mode else (230, 230, 230)
+    pygame.draw.rect(screen, notes_color, rects.notes_rect, border_radius=6)
+    pygame.draw.rect(screen, (0, 0, 0), rects.notes_rect, width=2, border_radius=6)
+    screen.blit(font.render("Notes", True, (0, 0, 0)),
+                font.render("Notes", True, (0, 0, 0)).get_rect(center=rects.notes_rect.center))
+
     for q, r in CELLS:
         center = hex_to_pixel(q, r, cx, cy)
         fill = (173, 216, 230) if (q, r) == state.selected else CELL_FILL_COLOR[(q, r)]
@@ -331,6 +376,11 @@ def draw(screen, state, font, big_font, rects, cx, cy):
             color = (0, 0, 0) if (q, r) in state.given else (80, 80, 180)
             label = font.render(str(state.cell_values[(q, r)]), True, color)
             screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
+        elif (q, r) in state.cell_notes:
+            for v in state.cell_notes[(q, r)]:
+                dx, dy = NOTE_OFFSETS[v]
+                lbl = notes_font.render(str(v), True, (100, 100, 180))
+                screen.blit(lbl, lbl.get_rect(center=(int(center[0]) + dx, int(center[1]) + dy)))
 
     if state.complete:
         pygame.draw.rect(screen, (255, 255, 255), rects.overlay_rect, border_radius=12)
@@ -356,6 +406,7 @@ def main():
     clock = pygame.time.Clock()
     font = pygame.font.SysFont(None, 44)
     big_font = pygame.font.SysFont(None, 56)
+    notes_font = pygame.font.SysFont(None, 20)
     cx, cy = 500, 500
 
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
@@ -363,6 +414,7 @@ def main():
         num_rects=[pygame.Rect(NUM_X - 22, NUM_Y0 + i * NUM_GAP - 22, 44, 44) for i in range(7)],
         hint_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP, 90, 38),
         clear_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP + 44, 90, 38),
+        notes_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP + 88, 90, 38),
         overlay_rect=pygame.Rect(250, 370, 500, 200),
         again_rect=pygame.Rect(310, 510, 160, 44),
         quit_rect=pygame.Rect(530, 510, 160, 44),
@@ -375,7 +427,7 @@ def main():
     running = True
     while running:
         running = handle_events(state, rects, cx, cy)
-        draw(screen, state, font, big_font, rects, cx, cy)
+        draw(screen, state, font, big_font, notes_font, rects, cx, cy)
         pygame.display.flip()
         clock.tick(60)
 
