@@ -147,6 +147,12 @@ def compute_errors(cell_values):
             error_cells |= group
     return error_cells
 
+def format_time(ms):
+    s = ms // 1000
+    m, s = divmod(s, 60)
+    return f"{m:02d}:{s:02d}"
+
+
 def hex_to_pixel(q, r, cx, cy):
     x = cx + (q + r / 2) * math.sqrt(3) * SIZE
     y = cy + r * 1.5 * SIZE
@@ -191,6 +197,8 @@ class GameState:
         self.error_cells = set()
         self.hint_cell = None
         self.complete = False
+        self.start_ticks = 0
+        self.finish_ticks = None
 
     def start(self, difficulty):
         self.complete_grid = generate_complete_grid()
@@ -204,6 +212,8 @@ class GameState:
         self.error_cells = set()
         self.hint_cell = None
         self.complete = False
+        self.start_ticks = pygame.time.get_ticks()
+        self.finish_ticks = None
         self.choosing_difficulty = False
 
     def new_game(self):
@@ -224,6 +234,7 @@ class GameState:
             self.error_cells = compute_errors(self.cell_values)
             if not self.error_cells:
                 self.complete = True
+                self.finish_ticks = pygame.time.get_ticks()
 
 
 UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'notes_rect', 'overlay_rect', 'again_rect', 'quit_rect', 'easy_rect', 'medium_rect', 'hard_rect'])
@@ -337,6 +348,10 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
         return
 
 
+    elapsed = (state.finish_ticks if state.finish_ticks else pygame.time.get_ticks()) - state.start_ticks
+    timer_label = font.render(format_time(elapsed), True, (0, 0, 0))
+    screen.blit(timer_label, (20, 20))
+
     for i, rect in enumerate(rects.num_rects):
         pygame.draw.rect(screen, (230, 230, 230), rect, border_radius=6)
         pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=6)
@@ -386,9 +401,11 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
         pygame.draw.rect(screen, (255, 255, 255), rects.overlay_rect, border_radius=12)
         pygame.draw.rect(screen, (0, 0, 0), rects.overlay_rect, width=3, border_radius=12)
         msg = big_font.render("Congratulations!", True, (0, 0, 0))
-        screen.blit(msg, msg.get_rect(center=(500, 420)))
+        screen.blit(msg, msg.get_rect(center=(500, 415)))
         sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
-        screen.blit(sub, sub.get_rect(center=(500, 475)))
+        screen.blit(sub, sub.get_rect(center=(500, 460)))
+        time_label = font.render(f"Time: {format_time(elapsed)}", True, (80, 80, 180))
+        screen.blit(time_label, time_label.get_rect(center=(500, 500)))
         pygame.draw.rect(screen, (200, 230, 200), rects.again_rect, border_radius=8)
         pygame.draw.rect(screen, (0, 0, 0), rects.again_rect, width=2, border_radius=8)
         screen.blit(font.render("Play Again", True, (0, 0, 0)),
@@ -415,9 +432,9 @@ def main():
         hint_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP, 90, 38),
         clear_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP + 44, 90, 38),
         notes_rect=pygame.Rect(NUM_X - 45, NUM_Y0 + 7 * NUM_GAP + 88, 90, 38),
-        overlay_rect=pygame.Rect(250, 370, 500, 200),
-        again_rect=pygame.Rect(310, 510, 160, 44),
-        quit_rect=pygame.Rect(530, 510, 160, 44),
+        overlay_rect=pygame.Rect(250, 370, 500, 230),
+        again_rect=pygame.Rect(310, 540, 160, 44),
+        quit_rect=pygame.Rect(530, 540, 160, 44),
         easy_rect=pygame.Rect(400, 420, 200, 50),
         medium_rect=pygame.Rect(400, 490, 200, 50),
         hard_rect=pygame.Rect(400, 560, 200, 50),

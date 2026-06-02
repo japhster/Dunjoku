@@ -19,6 +19,7 @@ Place the numbers 1–7 so that no value repeats within any:
 - **Notes** — toggle notes mode; press 1–7 to mark candidate values in empty cells (placing a real number clears notes from affected cells automatically)
 - **Clear** — removes the value or notes from the selected cell
 - **New Game** — returns to the difficulty selection screen
+- A **timer** in the top-left tracks how long the game has lasted; your final time is shown in the completion popup
 
 ## Difficulty
 
