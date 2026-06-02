@@ -12,14 +12,13 @@ ERROR_RED    = (220, 50, 50)
 HINT_GREEN   = (50, 180, 80)
 BORDER_BLUE  = (60, 90, 200)
 LINE_BLUE    = (140, 180, 240)
-PLAYER_BLUE  = (80, 80, 180)
+ACCENT_BLUE  = (80, 80, 180)
 NOTE_BLUE    = (100, 100, 180)
 BTN_GREY     = (230, 230, 230)
 BTN_GREEN    = (200, 230, 200)
 BTN_RED      = (230, 200, 200)
 BTN_NOTES_ON = (160, 210, 160)
 BTN_ORANGE   = (255, 230, 190)
-TIMER_BLUE   = (80, 80, 180)
 
 CELLS = frozenset({
     # row 1 (2 cells)
@@ -42,7 +41,12 @@ CELLS = frozenset({
     (-2, 4), (-1, 4),
 })
 
-SIZE = 55  # hex circumradius in pixels
+SIZE            = 55    # hex circumradius in pixels
+WINDOW_SIZE     = 1000
+FPS             = 60
+FONT_SIZE       = 44
+FONT_SIZE_BIG   = 56
+FONT_SIZE_NOTES = 20
 
 SUBGRIDS = {
     (0, 0):   {(0,0),(1,0),(-1,0),(0,1),(0,-1),(1,-1),(-1,1)},
@@ -364,20 +368,21 @@ def draw_difficulty_screen(screen, font, big_font, rects):
 
 
 def draw_cell(screen, font, notes_font, cell, center, state):
+    inner = SIZE - 2
     fill = SELECTED_BLUE if cell == state.selected else CELL_FILL_COLOR[cell]
-    draw_hex(screen, center, SIZE - 2, fill)
-    draw_hex(screen, center, SIZE - 2, BLACK, width=2)
+    draw_hex(screen, center, inner, fill)
+    draw_hex(screen, center, inner, BLACK, width=2)
     if cell in state.error_cells:
-        draw_hex(screen, center, SIZE - 2, ERROR_RED, width=3)
+        draw_hex(screen, center, inner, ERROR_RED, width=3)
     elif cell == state.hint_cell:
-        draw_hex(screen, center, SIZE - 2, HINT_GREEN, width=3)
+        draw_hex(screen, center, inner, HINT_GREEN, width=3)
     elif cell in state.selected_subgrid:
-        draw_hex(screen, center, SIZE - 2, BORDER_BLUE, width=3)
+        draw_hex(screen, center, inner, BORDER_BLUE, width=3)
     elif cell in state.selected_lines:
-        draw_hex(screen, center, SIZE - 2, LINE_BLUE, width=3)
+        draw_hex(screen, center, inner, LINE_BLUE, width=3)
     cx, cy = int(center[0]), int(center[1])
     if cell in state.cell_values:
-        color = BLACK if cell in state.given else PLAYER_BLUE
+        color = BLACK if cell in state.given else ACCENT_BLUE
         lbl = font.render(str(state.cell_values[cell]), True, color)
         screen.blit(lbl, lbl.get_rect(center=(cx, cy)))
     elif cell in state.cell_notes:
@@ -394,7 +399,7 @@ def draw_completion_overlay(screen, font, big_font, rects, elapsed):
     screen.blit(msg, msg.get_rect(center=(500, 415)))
     sub = font.render("You completed the Dunjoku grid.", True, BLACK)
     screen.blit(sub, sub.get_rect(center=(500, 460)))
-    time_label = font.render(f"Time: {format_time(elapsed)}", True, TIMER_BLUE)
+    time_label = font.render(f"Time: {format_time(elapsed)}", True, ACCENT_BLUE)
     screen.blit(time_label, time_label.get_rect(center=(500, 500)))
     draw_button(screen, font, rects.again_rect, "Play Again", BTN_GREEN, border_radius=8)
     draw_button(screen, font, rects.quit_rect, "Quit", BTN_RED, border_radius=8)
@@ -426,13 +431,13 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((1000, 1000))
+    screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
     pygame.display.set_caption("Dunjoku")
     clock = pygame.time.Clock()
-    font = pygame.font.SysFont(None, 44)
-    big_font = pygame.font.SysFont(None, 56)
-    notes_font = pygame.font.SysFont(None, 20)
-    cx, cy = 500, 500
+    font = pygame.font.SysFont(None, FONT_SIZE)
+    big_font = pygame.font.SysFont(None, FONT_SIZE_BIG)
+    notes_font = pygame.font.SysFont(None, FONT_SIZE_NOTES)
+    cx, cy = WINDOW_SIZE // 2, WINDOW_SIZE // 2
 
     NUM_X, NUM_Y0, NUM_GAP = 80, 330, 55
     rects = UIRects(
@@ -454,7 +459,7 @@ def main():
         running = handle_events(state, rects, cx, cy)
         draw(screen, state, font, big_font, notes_font, rects, cx, cy)
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(FPS)
 
     pygame.quit()
 
