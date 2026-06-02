@@ -5,6 +5,22 @@ import pygame
 
 SQRT3 = math.sqrt(3)
 
+WHITE        = (255, 255, 255)
+BLACK        = (0, 0, 0)
+SELECTED_BLUE = (173, 216, 230)
+ERROR_RED    = (220, 50, 50)
+HINT_GREEN   = (50, 180, 80)
+BORDER_BLUE  = (60, 90, 200)
+LINE_BLUE    = (140, 180, 240)
+PLAYER_BLUE  = (80, 80, 180)
+NOTE_BLUE    = (100, 100, 180)
+BTN_GREY     = (230, 230, 230)
+BTN_GREEN    = (200, 230, 200)
+BTN_RED      = (230, 200, 200)
+BTN_NOTES_ON = (160, 210, 160)
+BTN_ORANGE   = (255, 230, 190)
+TIMER_BLUE   = (80, 80, 180)
+
 CELLS = frozenset({
     # row 1 (2 cells)
     (1, -4), (2, -4),
@@ -177,8 +193,8 @@ def pixel_to_hex(x, y, cx, cy):
 
 def draw_button(screen, font, rect, label, color, border_radius=6):
     pygame.draw.rect(screen, color, rect, border_radius=border_radius)
-    pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=border_radius)
-    lbl = font.render(label, True, (0, 0, 0))
+    pygame.draw.rect(screen, BLACK, rect, width=2, border_radius=border_radius)
+    lbl = font.render(label, True, BLACK)
     screen.blit(lbl, lbl.get_rect(center=rect.center))
 
 
@@ -337,69 +353,69 @@ NOTE_OFFSETS = {
 
 
 def draw_difficulty_screen(screen, font, big_font, rects):
-    title = big_font.render("Choose Difficulty", True, (0, 0, 0))
+    title = big_font.render("Choose Difficulty", True, BLACK)
     screen.blit(title, title.get_rect(center=(500, 350)))
     for rect, label, color in [
-        (rects.easy_rect, "Easy", (200, 230, 200)),
-        (rects.medium_rect, "Medium", (255, 230, 190)),
-        (rects.hard_rect, "Hard", (230, 200, 200)),
+        (rects.easy_rect, "Easy", BTN_GREEN),
+        (rects.medium_rect, "Medium", BTN_ORANGE),
+        (rects.hard_rect, "Hard", BTN_RED),
     ]:
         draw_button(screen, font, rect, label, color, border_radius=8)
 
 
 def draw_cell(screen, font, notes_font, cell, center, state):
-    fill = (173, 216, 230) if cell == state.selected else CELL_FILL_COLOR[cell]
+    fill = SELECTED_BLUE if cell == state.selected else CELL_FILL_COLOR[cell]
     draw_hex(screen, center, SIZE - 2, fill)
-    draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
+    draw_hex(screen, center, SIZE - 2, BLACK, width=2)
     if cell in state.error_cells:
-        draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
+        draw_hex(screen, center, SIZE - 2, ERROR_RED, width=3)
     elif cell == state.hint_cell:
-        draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
+        draw_hex(screen, center, SIZE - 2, HINT_GREEN, width=3)
     elif cell in state.selected_subgrid:
-        draw_hex(screen, center, SIZE - 2, (60, 90, 200), width=3)
+        draw_hex(screen, center, SIZE - 2, BORDER_BLUE, width=3)
     elif cell in state.selected_lines:
-        draw_hex(screen, center, SIZE - 2, (140, 180, 240), width=3)
+        draw_hex(screen, center, SIZE - 2, LINE_BLUE, width=3)
     cx, cy = int(center[0]), int(center[1])
     if cell in state.cell_values:
-        color = (0, 0, 0) if cell in state.given else (80, 80, 180)
+        color = BLACK if cell in state.given else PLAYER_BLUE
         lbl = font.render(str(state.cell_values[cell]), True, color)
         screen.blit(lbl, lbl.get_rect(center=(cx, cy)))
     elif cell in state.cell_notes:
         for v in state.cell_notes[cell]:
             dx, dy = NOTE_OFFSETS[v]
-            lbl = notes_font.render(str(v), True, (100, 100, 180))
+            lbl = notes_font.render(str(v), True, NOTE_BLUE)
             screen.blit(lbl, lbl.get_rect(center=(cx + dx, cy + dy)))
 
 
 def draw_completion_overlay(screen, font, big_font, rects, elapsed):
-    pygame.draw.rect(screen, (255, 255, 255), rects.overlay_rect, border_radius=12)
-    pygame.draw.rect(screen, (0, 0, 0), rects.overlay_rect, width=3, border_radius=12)
-    msg = big_font.render("Congratulations!", True, (0, 0, 0))
+    pygame.draw.rect(screen, WHITE, rects.overlay_rect, border_radius=12)
+    pygame.draw.rect(screen, BLACK, rects.overlay_rect, width=3, border_radius=12)
+    msg = big_font.render("Congratulations!", True, BLACK)
     screen.blit(msg, msg.get_rect(center=(500, 415)))
-    sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
+    sub = font.render("You completed the Dunjoku grid.", True, BLACK)
     screen.blit(sub, sub.get_rect(center=(500, 460)))
-    time_label = font.render(f"Time: {format_time(elapsed)}", True, (80, 80, 180))
+    time_label = font.render(f"Time: {format_time(elapsed)}", True, TIMER_BLUE)
     screen.blit(time_label, time_label.get_rect(center=(500, 500)))
-    draw_button(screen, font, rects.again_rect, "Play Again", (200, 230, 200), border_radius=8)
-    draw_button(screen, font, rects.quit_rect, "Quit", (230, 200, 200), border_radius=8)
+    draw_button(screen, font, rects.again_rect, "Play Again", BTN_GREEN, border_radius=8)
+    draw_button(screen, font, rects.quit_rect, "Quit", BTN_RED, border_radius=8)
 
 
 def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
-    screen.fill((255, 255, 255))
+    screen.fill(WHITE)
 
     if state.choosing_difficulty:
         draw_difficulty_screen(screen, font, big_font, rects)
         return
 
     elapsed = (state.finish_ticks if state.finish_ticks else pygame.time.get_ticks()) - state.start_ticks
-    timer_label = font.render(format_time(elapsed), True, (0, 0, 0))
+    timer_label = font.render(format_time(elapsed), True, BLACK)
     screen.blit(timer_label, (20, 20))
 
     for i, rect in enumerate(rects.num_rects):
-        draw_button(screen, font, rect, str(i + 1), (230, 230, 230))
-    draw_button(screen, font, rects.hint_rect, "Hint", (200, 230, 200))
-    draw_button(screen, font, rects.clear_rect, "Clear", (230, 200, 200))
-    draw_button(screen, font, rects.notes_rect, "Notes", (160, 210, 160) if state.notes_mode else (230, 230, 230))
+        draw_button(screen, font, rect, str(i + 1), BTN_GREY)
+    draw_button(screen, font, rects.hint_rect, "Hint", BTN_GREEN)
+    draw_button(screen, font, rects.clear_rect, "Clear", BTN_RED)
+    draw_button(screen, font, rects.notes_rect, "Notes", BTN_NOTES_ON if state.notes_mode else BTN_GREY)
 
     for cell in CELLS:
         draw_cell(screen, font, notes_font, cell, hex_to_pixel(*cell, cx, cy), state)
