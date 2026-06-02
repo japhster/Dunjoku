@@ -3,7 +3,9 @@ import random
 from collections import namedtuple
 import pygame
 
-CELLS = {
+SQRT3 = math.sqrt(3)
+
+CELLS = frozenset({
     # row 1 (2 cells)
     (1, -4), (2, -4),
     # row 2 (5 cells)
@@ -22,7 +24,7 @@ CELLS = {
     (-4, 3), (-3, 3), (-2, 3), (-1, 3), (0, 3),
     # row 9 (2 cells)
     (-2, 4), (-1, 4),
-}
+})
 
 SIZE = 55  # hex circumradius in pixels
 
@@ -154,13 +156,13 @@ def format_time(ms):
 
 
 def hex_to_pixel(q, r, cx, cy):
-    x = cx + (q + r / 2) * math.sqrt(3) * SIZE
+    x = cx + (q + r / 2) * SQRT3 * SIZE
     y = cy + r * 1.5 * SIZE
     return (x, y)
 
 def pixel_to_hex(x, y, cx, cy):
     fr = (y - cy) / (1.5 * SIZE)
-    fq = (x - cx) / (math.sqrt(3) * SIZE) - fr / 2
+    fq = (x - cx) / (SQRT3 * SIZE) - fr / 2
     fx, fz = fq, fr
     fy = -fx - fz
     rx, ry, rz = round(fx), round(fy), round(fz)
@@ -226,6 +228,23 @@ class GameState:
     def new_game(self):
         self.choosing_difficulty = True
 
+    def toggle_note(self, cell, v):
+        notes = self.cell_notes.setdefault(cell, set())
+        if v in notes:
+            notes.discard(v)
+        else:
+            notes.add(v)
+
+    def select(self, cell):
+        self.selected = cell if cell != self.selected else None
+        if self.selected:
+            subgrid, *lines = CELL_GROUPS[self.selected]
+            self.selected_subgrid = set(subgrid)
+            self.selected_lines = set().union(*lines) - self.selected_subgrid
+        else:
+            self.selected_subgrid = set()
+            self.selected_lines = set()
+
     def place_value(self, cell, v):
         self.cell_values[cell] = v
         self.cell_notes.pop(cell, None)
@@ -237,11 +256,9 @@ class GameState:
         self.check_complete()
 
     def check_complete(self):
-        if len(self.cell_values) == len(CELLS):
-            self.error_cells = compute_errors(self.cell_values)
-            if not self.error_cells:
-                self.complete = True
-                self.finish_ticks = pygame.time.get_ticks()
+        if len(self.cell_values) == len(CELLS) and not self.error_cells:
+            self.complete = True
+            self.finish_ticks = pygame.time.get_ticks()
 
 
 UIRects = namedtuple('UIRects', ['num_rects', 'hint_rect', 'clear_rect', 'notes_rect', 'overlay_rect', 'again_rect', 'quit_rect', 'easy_rect', 'medium_rect', 'hard_rect'])
@@ -273,11 +290,7 @@ def handle_events(state, rects, cx, cy):
             if event.unicode in '1234567':
                 v = int(event.unicode)
                 if state.notes_mode and state.selected not in state.cell_values:
-                    notes = state.cell_notes.setdefault(state.selected, set())
-                    if v in notes:
-                        notes.discard(v)
-                    else:
-                        notes.add(v)
+                    state.toggle_note(state.selected, v)
                 elif not state.notes_mode:
                     state.place_value(state.selected, v)
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -286,11 +299,7 @@ def handle_events(state, rects, cx, cy):
                 if rect.collidepoint(event.pos) and state.selected is not None and state.selected not in state.given:
                     v = i + 1
                     if state.notes_mode and state.selected not in state.cell_values:
-                        notes = state.cell_notes.setdefault(state.selected, set())
-                        if v in notes:
-                            notes.discard(v)
-                        else:
-                            notes.add(v)
+                        state.toggle_note(state.selected, v)
                     elif not state.notes_mode:
                         state.place_value(state.selected, v)
                     placed = True
@@ -316,17 +325,7 @@ def handle_events(state, rects, cx, cy):
             if not placed:
                 state.hint_cell = None
                 clicked = pixel_to_hex(*event.pos, cx, cy)
-                if clicked in CELLS:
-                    state.selected = None if clicked == state.selected else clicked
-                else:
-                    state.selected = None
-                if state.selected:
-                    subgrid, *lines = CELL_GROUPS[state.selected]
-                    state.selected_subgrid = set(subgrid)
-                    state.selected_lines = set().union(*lines) - state.selected_subgrid
-                else:
-                    state.selected_subgrid = set()
-                    state.selected_lines = set()
+                state.select(clicked if clicked in CELLS else None)
     return True
 
 
