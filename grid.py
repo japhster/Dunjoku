@@ -173,6 +173,13 @@ def pixel_to_hex(x, y, cx, cy):
         rz = -rx - ry
     return (rx, rz)
 
+def draw_button(screen, font, rect, label, color, border_radius=6):
+    pygame.draw.rect(screen, color, rect, border_radius=border_radius)
+    pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=border_radius)
+    lbl = font.render(label, True, (0, 0, 0))
+    screen.blit(lbl, lbl.get_rect(center=rect.center))
+
+
 def draw_hex(surface, center, radius, color, width=0):
     cx, cy = center
     points = [
@@ -341,10 +348,7 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
             (rects.medium_rect, "Medium", (255, 230, 190)),
             (rects.hard_rect, "Hard", (230, 200, 200)),
         ]:
-            pygame.draw.rect(screen, color, rect, border_radius=8)
-            pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=8)
-            lbl = font.render(label, True, (0, 0, 0))
-            screen.blit(lbl, lbl.get_rect(center=rect.center))
+            draw_button(screen, font, rect, label, color, border_radius=8)
         return
 
 
@@ -353,26 +357,11 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
     screen.blit(timer_label, (20, 20))
 
     for i, rect in enumerate(rects.num_rects):
-        pygame.draw.rect(screen, (230, 230, 230), rect, border_radius=6)
-        pygame.draw.rect(screen, (0, 0, 0), rect, width=2, border_radius=6)
-        label = font.render(str(i + 1), True, (0, 0, 0))
-        screen.blit(label, label.get_rect(center=rect.center))
+        draw_button(screen, font, rect, str(i + 1), (230, 230, 230))
 
-    pygame.draw.rect(screen, (200, 230, 200), rects.hint_rect, border_radius=6)
-    pygame.draw.rect(screen, (0, 0, 0), rects.hint_rect, width=2, border_radius=6)
-    screen.blit(font.render("Hint", True, (0, 0, 0)),
-                font.render("Hint", True, (0, 0, 0)).get_rect(center=rects.hint_rect.center))
-
-    pygame.draw.rect(screen, (230, 200, 200), rects.clear_rect, border_radius=6)
-    pygame.draw.rect(screen, (0, 0, 0), rects.clear_rect, width=2, border_radius=6)
-    screen.blit(font.render("Clear", True, (0, 0, 0)),
-                font.render("Clear", True, (0, 0, 0)).get_rect(center=rects.clear_rect.center))
-
-    notes_color = (160, 210, 160) if state.notes_mode else (230, 230, 230)
-    pygame.draw.rect(screen, notes_color, rects.notes_rect, border_radius=6)
-    pygame.draw.rect(screen, (0, 0, 0), rects.notes_rect, width=2, border_radius=6)
-    screen.blit(font.render("Notes", True, (0, 0, 0)),
-                font.render("Notes", True, (0, 0, 0)).get_rect(center=rects.notes_rect.center))
+    draw_button(screen, font, rects.hint_rect, "Hint", (200, 230, 200))
+    draw_button(screen, font, rects.clear_rect, "Clear", (230, 200, 200))
+    draw_button(screen, font, rects.notes_rect, "Notes", (160, 210, 160) if state.notes_mode else (230, 230, 230))
 
     for q, r in CELLS:
         center = hex_to_pixel(q, r, cx, cy)
@@ -406,14 +395,8 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
         screen.blit(sub, sub.get_rect(center=(500, 460)))
         time_label = font.render(f"Time: {format_time(elapsed)}", True, (80, 80, 180))
         screen.blit(time_label, time_label.get_rect(center=(500, 500)))
-        pygame.draw.rect(screen, (200, 230, 200), rects.again_rect, border_radius=8)
-        pygame.draw.rect(screen, (0, 0, 0), rects.again_rect, width=2, border_radius=8)
-        screen.blit(font.render("Play Again", True, (0, 0, 0)),
-                    font.render("Play Again", True, (0, 0, 0)).get_rect(center=rects.again_rect.center))
-        pygame.draw.rect(screen, (230, 200, 200), rects.quit_rect, border_radius=8)
-        pygame.draw.rect(screen, (0, 0, 0), rects.quit_rect, width=2, border_radius=8)
-        screen.blit(font.render("Quit", True, (0, 0, 0)),
-                    font.render("Quit", True, (0, 0, 0)).get_rect(center=rects.quit_rect.center))
+        draw_button(screen, font, rects.again_rect, "Play Again", (200, 230, 200), border_radius=8)
+        draw_button(screen, font, rects.quit_rect, "Quit", (230, 200, 200), border_radius=8)
 
 
 def main():
