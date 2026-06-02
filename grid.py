@@ -337,20 +337,60 @@ NOTE_OFFSETS = {
 }
 
 
+def draw_difficulty_screen(screen, font, big_font, rects):
+    title = big_font.render("Choose Difficulty", True, (0, 0, 0))
+    screen.blit(title, title.get_rect(center=(500, 350)))
+    for rect, label, color in [
+        (rects.easy_rect, "Easy", (200, 230, 200)),
+        (rects.medium_rect, "Medium", (255, 230, 190)),
+        (rects.hard_rect, "Hard", (230, 200, 200)),
+    ]:
+        draw_button(screen, font, rect, label, color, border_radius=8)
+
+
+def draw_cell(screen, font, notes_font, cell, center, state):
+    fill = (173, 216, 230) if cell == state.selected else CELL_FILL_COLOR[cell]
+    draw_hex(screen, center, SIZE - 2, fill)
+    draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
+    if cell in state.error_cells:
+        draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
+    elif cell == state.hint_cell:
+        draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
+    elif cell in state.selected_subgrid:
+        draw_hex(screen, center, SIZE - 2, (60, 90, 200), width=3)
+    elif cell in state.selected_lines:
+        draw_hex(screen, center, SIZE - 2, (140, 180, 240), width=3)
+    cx, cy = int(center[0]), int(center[1])
+    if cell in state.cell_values:
+        color = (0, 0, 0) if cell in state.given else (80, 80, 180)
+        lbl = font.render(str(state.cell_values[cell]), True, color)
+        screen.blit(lbl, lbl.get_rect(center=(cx, cy)))
+    elif cell in state.cell_notes:
+        for v in state.cell_notes[cell]:
+            dx, dy = NOTE_OFFSETS[v]
+            lbl = notes_font.render(str(v), True, (100, 100, 180))
+            screen.blit(lbl, lbl.get_rect(center=(cx + dx, cy + dy)))
+
+
+def draw_completion_overlay(screen, font, big_font, rects, elapsed):
+    pygame.draw.rect(screen, (255, 255, 255), rects.overlay_rect, border_radius=12)
+    pygame.draw.rect(screen, (0, 0, 0), rects.overlay_rect, width=3, border_radius=12)
+    msg = big_font.render("Congratulations!", True, (0, 0, 0))
+    screen.blit(msg, msg.get_rect(center=(500, 415)))
+    sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
+    screen.blit(sub, sub.get_rect(center=(500, 460)))
+    time_label = font.render(f"Time: {format_time(elapsed)}", True, (80, 80, 180))
+    screen.blit(time_label, time_label.get_rect(center=(500, 500)))
+    draw_button(screen, font, rects.again_rect, "Play Again", (200, 230, 200), border_radius=8)
+    draw_button(screen, font, rects.quit_rect, "Quit", (230, 200, 200), border_radius=8)
+
+
 def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
     screen.fill((255, 255, 255))
 
     if state.choosing_difficulty:
-        title = big_font.render("Choose Difficulty", True, (0, 0, 0))
-        screen.blit(title, title.get_rect(center=(500, 350)))
-        for rect, label, color in [
-            (rects.easy_rect, "Easy", (200, 230, 200)),
-            (rects.medium_rect, "Medium", (255, 230, 190)),
-            (rects.hard_rect, "Hard", (230, 200, 200)),
-        ]:
-            draw_button(screen, font, rect, label, color, border_radius=8)
+        draw_difficulty_screen(screen, font, big_font, rects)
         return
-
 
     elapsed = (state.finish_ticks if state.finish_ticks else pygame.time.get_ticks()) - state.start_ticks
     timer_label = font.render(format_time(elapsed), True, (0, 0, 0))
@@ -358,45 +398,15 @@ def draw(screen, state, font, big_font, notes_font, rects, cx, cy):
 
     for i, rect in enumerate(rects.num_rects):
         draw_button(screen, font, rect, str(i + 1), (230, 230, 230))
-
     draw_button(screen, font, rects.hint_rect, "Hint", (200, 230, 200))
     draw_button(screen, font, rects.clear_rect, "Clear", (230, 200, 200))
     draw_button(screen, font, rects.notes_rect, "Notes", (160, 210, 160) if state.notes_mode else (230, 230, 230))
 
-    for q, r in CELLS:
-        center = hex_to_pixel(q, r, cx, cy)
-        fill = (173, 216, 230) if (q, r) == state.selected else CELL_FILL_COLOR[(q, r)]
-        draw_hex(screen, center, SIZE - 2, fill)
-        draw_hex(screen, center, SIZE - 2, (0, 0, 0), width=2)
-        if (q, r) in state.error_cells:
-            draw_hex(screen, center, SIZE - 2, (220, 50, 50), width=3)
-        elif (q, r) == state.hint_cell:
-            draw_hex(screen, center, SIZE - 2, (50, 180, 80), width=3)
-        elif (q, r) in state.selected_subgrid:
-            draw_hex(screen, center, SIZE - 2, (60, 90, 200), width=3)
-        elif (q, r) in state.selected_lines:
-            draw_hex(screen, center, SIZE - 2, (140, 180, 240), width=3)
-        if (q, r) in state.cell_values:
-            color = (0, 0, 0) if (q, r) in state.given else (80, 80, 180)
-            label = font.render(str(state.cell_values[(q, r)]), True, color)
-            screen.blit(label, label.get_rect(center=(int(center[0]), int(center[1]))))
-        elif (q, r) in state.cell_notes:
-            for v in state.cell_notes[(q, r)]:
-                dx, dy = NOTE_OFFSETS[v]
-                lbl = notes_font.render(str(v), True, (100, 100, 180))
-                screen.blit(lbl, lbl.get_rect(center=(int(center[0]) + dx, int(center[1]) + dy)))
+    for cell in CELLS:
+        draw_cell(screen, font, notes_font, cell, hex_to_pixel(*cell, cx, cy), state)
 
     if state.complete:
-        pygame.draw.rect(screen, (255, 255, 255), rects.overlay_rect, border_radius=12)
-        pygame.draw.rect(screen, (0, 0, 0), rects.overlay_rect, width=3, border_radius=12)
-        msg = big_font.render("Congratulations!", True, (0, 0, 0))
-        screen.blit(msg, msg.get_rect(center=(500, 415)))
-        sub = font.render("You completed the Dunjoku grid.", True, (0, 0, 0))
-        screen.blit(sub, sub.get_rect(center=(500, 460)))
-        time_label = font.render(f"Time: {format_time(elapsed)}", True, (80, 80, 180))
-        screen.blit(time_label, time_label.get_rect(center=(500, 500)))
-        draw_button(screen, font, rects.again_rect, "Play Again", (200, 230, 200), border_radius=8)
-        draw_button(screen, font, rects.quit_rect, "Quit", (230, 200, 200), border_radius=8)
+        draw_completion_overlay(screen, font, big_font, rects, elapsed)
 
 
 def main():
